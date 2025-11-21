@@ -1,20 +1,27 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use axum::{
+    response::Json,
+    routing::get,
+    Router,
+};
+
 use futures::stream::TryStreamExt;
 
 use rtnetlink::{
     RouteMessageBuilder, new_connection,
     packet_route::route::{
-        RouteAddress, RouteAttribute, RouteMessage, RouteProtocol, RouteScope, RouteType,
+        RouteAddress, RouteAttribute, RouteProtocol, RouteScope, RouteType,
     },
     sys::AsyncSocket,
 };
-use tokio::time::{Duration, sleep};
 
-async fn get_routes(
+use serde_json::{Value, json};
+
+async fn get_gateways(
     handle: &rtnetlink::Handle,
     ip_family: IpAddr,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Option<String> {
     let route = match ip_family {
         IpAddr::V4(_) => RouteMessageBuilder::<Ipv4Addr>::new()
             .table_id(254)
@@ -33,7 +40,7 @@ async fn get_routes(
 
     let mut routes = handle.route().get(route).execute();
 
-    while let Some(route) = routes.try_next().await? {
+    while let Some(route) = routes.try_next().await.ok()? {
         if route.header.destination_prefix_length == 0 {
             let has_gateway = route
                 .attributes
@@ -41,29 +48,26 @@ async fn get_routes(
                 .any(|attr| matches!(attr, RouteAttribute::Gateway(_)));
 
             if has_gateway {
-                println!("{:?}", get_route_gateway(&route).unwrap());
+                for attr in &route.attributes {
+                    match attr {
+                        RouteAttribute::Gateway(gateway) => {
+                            return match gateway {
+                                RouteAddress::Inet(addr) => Some(addr.to_string()),
+                                RouteAddress::Inet6(addr) => Some(addr.to_string()),
+                                _ => None,
+                            }
+                        }
+                        _ => ()
+                    }
+                }
             }
-        }
-    }
-
-    Ok(())
-}
-
-fn get_route_gateway(route: &RouteMessage) -> Option<RouteAddress> {
-    for attr in &route.attributes {
-        match attr {
-            RouteAttribute::Gateway(gateway) => {
-                return Some(gateway.clone());
-            }
-            _ => (),
         }
     }
 
     None
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn get_targets() -> Json<Value> {
     let (mut connection, handle, _) = new_connection().unwrap();
 
     let _ = connection
@@ -73,17 +77,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tokio::spawn(connection);
 
-    loop {
-        // Fetch and print IPv4 routes
-        if let Err(err) = get_routes(&handle, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0))).await {
-            eprintln!("Error fetching IPv4 routes: {}", err);
-        }
+    let ip4_gw = get_gateways(&handle, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0))).await;
 
-        // Fetch and print IPv6 routes
-        if let Err(err) = get_routes(&handle, IpAddr::V6(Ipv6Addr::UNSPECIFIED)).await {
-            eprintln!("Error fetching IPv6 routes: {}", err);
-        }
+    let ip6_gw = get_gateways(&handle, IpAddr::V6(Ipv6Addr::UNSPECIFIED)).await;
 
-        sleep(Duration::from_secs(10)).await;
-    }
+    Json(json!({"targets": [ip4_gw, ip6_gw]}))
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let listener = tokio::net::TcpListener::bind("[::]:3000").await.unwrap();
+
+    let app = Router::new().route("/", get(get_targets));
+
+    axum::serve(listener, app).await.unwrap();
+
+    Ok(())
 }
