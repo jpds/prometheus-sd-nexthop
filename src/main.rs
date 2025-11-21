@@ -36,33 +36,30 @@ async fn get_gateways(
 
     while let Some(route) = routes.try_next().await? {
         if route.header.destination_prefix_length == 0 {
-            if let Some(gateway_attr) = route
+            if let Some(RouteAttribute::Gateway(gateway)) = route
                 .attributes
                 .iter()
                 .find(|attr| matches!(attr, RouteAttribute::Gateway(_)))
             {
-                if let RouteAttribute::Gateway(gateway) = gateway_attr {
-                    let mut gateway_str = match gateway {
-                        RouteAddress::Inet(addr) => addr.to_string(),
-                        RouteAddress::Inet6(addr) => addr.to_string(),
-                        _ => continue,
-                    };
+                let mut gateway_str = match gateway {
+                    RouteAddress::Inet(addr) => addr.to_string(),
+                    RouteAddress::Inet6(addr) => addr.to_string(),
+                    _ => return Ok(None),
+                };
 
-                    // Check if there's an outgoing interface (Oif) attribute
-                    if let Some(oif_attr) = route
-                        .attributes
-                        .iter()
-                        .find(|attr| matches!(attr, RouteAttribute::Oif(_)))
-                    {
-                        if let RouteAttribute::Oif(oif) = oif_attr {
-                            // Append the Oif value to the IPv6 addresses
-                            if let IpAddr::V6(_) = ip_family {
-                                gateway_str = format!("{}%{}", gateway_str, oif);
-                            }
-                        }
+                // Check if there's an outgoing interface (Oif) attribute
+                if let Some(RouteAttribute::Oif(oif)) = route
+                    .attributes
+                    .iter()
+                    .find(|attr| matches!(attr, RouteAttribute::Oif(_)))
+                {
+                    // Append the Oif value to the IPv6 address if it's IPv6
+                    if let IpAddr::V6(_) = ip_family {
+                        gateway_str = format!("{}%{}", gateway_str, oif);
                     }
-                    return Ok(Some(gateway_str));
                 }
+
+                return Ok(Some(gateway_str));
             }
         }
     }
