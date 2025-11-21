@@ -42,11 +42,25 @@ async fn get_gateways(
                 .find(|attr| matches!(attr, RouteAttribute::Gateway(_)))
             {
                 if let RouteAttribute::Gateway(gateway) = gateway_attr {
-                    let gateway_str = match gateway {
+                    let mut gateway_str = match gateway {
                         RouteAddress::Inet(addr) => addr.to_string(),
                         RouteAddress::Inet6(addr) => addr.to_string(),
                         _ => continue,
                     };
+
+                    // Check if there's an outgoing interface (Oif) attribute
+                    if let Some(oif_attr) = route
+                        .attributes
+                        .iter()
+                        .find(|attr| matches!(attr, RouteAttribute::Oif(_)))
+                    {
+                        if let RouteAttribute::Oif(oif) = oif_attr {
+                            // Append the Oif value to the IPv6 addresses
+                            if let IpAddr::V6(_) = ip_family {
+                                gateway_str = format!("{}%{}", gateway_str, oif);
+                            }
+                        }
+                    }
                     return Ok(Some(gateway_str));
                 }
             }
