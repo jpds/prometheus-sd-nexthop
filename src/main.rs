@@ -106,7 +106,7 @@ async fn get_targets() -> Json<Value> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let listener = tokio::net::TcpListener::bind("[::]:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("[::]:9198").await.unwrap();
 
     let app = Router::new().route("/", get(get_targets));
 
