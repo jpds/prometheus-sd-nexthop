@@ -1,18 +1,12 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use axum::{
-    response::Json,
-    routing::get,
-    Router,
-};
+use axum::{Router, response::Json, routing::get};
 
 use futures::stream::TryStreamExt;
 
 use rtnetlink::{
     RouteMessageBuilder, new_connection,
-    packet_route::route::{
-        RouteAddress, RouteAttribute, RouteProtocol, RouteScope, RouteType,
-    },
+    packet_route::route::{RouteAddress, RouteAttribute, RouteProtocol, RouteScope, RouteType},
     sys::AsyncSocket,
 };
 
@@ -21,7 +15,7 @@ use serde_json::{Value, json};
 async fn get_gateways(
     handle: &rtnetlink::Handle,
     ip_family: IpAddr,
-) -> Option<String> {
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let route = match ip_family {
         IpAddr::V4(_) => RouteMessageBuilder::<Ipv4Addr>::new()
             .table_id(254)
@@ -40,31 +34,26 @@ async fn get_gateways(
 
     let mut routes = handle.route().get(route).execute();
 
-    while let Some(route) = routes.try_next().await.ok()? {
+    while let Some(route) = routes.try_next().await? {
         if route.header.destination_prefix_length == 0 {
-            let has_gateway = route
+            if let Some(gateway_attr) = route
                 .attributes
                 .iter()
-                .any(|attr| matches!(attr, RouteAttribute::Gateway(_)));
-
-            if has_gateway {
-                for attr in &route.attributes {
-                    match attr {
-                        RouteAttribute::Gateway(gateway) => {
-                            return match gateway {
-                                RouteAddress::Inet(addr) => Some(addr.to_string()),
-                                RouteAddress::Inet6(addr) => Some(addr.to_string()),
-                                _ => None,
-                            }
-                        }
-                        _ => ()
-                    }
+                .find(|attr| matches!(attr, RouteAttribute::Gateway(_)))
+            {
+                if let RouteAttribute::Gateway(gateway) = gateway_attr {
+                    let gateway_str = match gateway {
+                        RouteAddress::Inet(addr) => addr.to_string(),
+                        RouteAddress::Inet6(addr) => addr.to_string(),
+                        _ => continue,
+                    };
+                    return Ok(Some(gateway_str));
                 }
             }
         }
     }
 
-    None
+    Ok(None)
 }
 
 async fn get_targets() -> Json<Value> {
@@ -77,11 +66,28 @@ async fn get_targets() -> Json<Value> {
 
     tokio::spawn(connection);
 
-    let ip4_gw = get_gateways(&handle, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0))).await;
+    let ip4_gw = get_gateways(&handle, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))
+        .await
+        .unwrap_or(None);
+    let ip6_gw = get_gateways(&handle, IpAddr::V6(Ipv6Addr::UNSPECIFIED))
+        .await
+        .unwrap_or(None);
 
-    let ip6_gw = get_gateways(&handle, IpAddr::V6(Ipv6Addr::UNSPECIFIED)).await;
+    // Collect the non-None gateway values in a list (Vec<Value>)
+    let mut targets = Vec::new();
 
-    Json(json!({"targets": [ip4_gw, ip6_gw]}))
+    if let Some(ip4) = ip4_gw {
+        targets.push(Value::String(ip4));
+    }
+
+    if let Some(ip6) = ip6_gw {
+        targets.push(Value::String(ip6));
+    }
+
+    // Return the JSON with the 'targets' array
+    Json(json!([{
+        "targets": targets
+    }]))
 }
 
 #[tokio::main]
