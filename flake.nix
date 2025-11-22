@@ -28,6 +28,8 @@
           prometheus-sd-nexthop = (rustPkgs.workspace.prometheus-sd-nexthop { });
           default = packages.prometheus-sd-nexthop;
         };
+
+        checks.prometheus-sd-nexthop = pkgs.testers.runNixOSTest (import ./test.nix { inherit packages; });
       }
     );
 }
