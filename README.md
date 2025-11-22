@@ -11,9 +11,12 @@ router to monitor the availability of the equipment belonging to a user's ISP.
 
 Configure Prometheus as follows to have the `router-nexthop` job dynamically
 get IP addresses to probe from this service discovery tool (which listens on
-port `9198` by default): 
+port `9198` by default) - and probe them with the `blackbox_exporter` prober: 
 
 ```yaml
+- job_name: prometheus-sd-nexthop
+  targets:
+  - 10.0.0.1:9198
 - job_name: router-nexthop
   metrics_path: /probe
   params:
@@ -29,5 +32,7 @@ port `9198` by default):
   http_sd_configs:
   - url: http://10.0.0.1:9198/ # This service discovery service
 ```
+
+This tool also exposes its own metrics at the `/metrics` endpoint.
 
 [^1]: https://github.com/prometheus/blackbox_exporter
