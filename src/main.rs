@@ -110,6 +110,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Failed to bind TCP listener on [::]:9198");
 
+    println!("Starting prometheus-sd-nexthop server at [::]:9198");
+
     let app = Router::new()
         .route("/", get(get_targets))
         .route("/metrics", get(|| async move { metric_handle.render() }))
