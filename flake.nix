@@ -1,8 +1,9 @@
 {
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.12";
     flake-utils.follows = "cargo2nix/flake-utils";
-    nixpkgs.follows = "cargo2nix/nixpkgs";
+    # nixpkgs.follows = "cargo2nix/nixpkgs";
   };
 
   outputs =
