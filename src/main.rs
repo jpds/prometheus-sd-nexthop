@@ -1,8 +1,8 @@
 #[forbid(unsafe_code)]
-
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use axum::{Router, response::Json, routing::get};
+use axum_prometheus::PrometheusMetricLayer;
 
 use futures::stream::TryStreamExt;
 
@@ -105,11 +105,16 @@ async fn get_targets() -> Json<Value> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+
     let listener = tokio::net::TcpListener::bind("[::]:9198")
         .await
         .expect("Failed to bind TCP listener on [::]:9198");
 
-    let app = Router::new().route("/", get(get_targets));
+    let app = Router::new()
+        .route("/", get(get_targets))
+        .route("/metrics", get(|| async move { metric_handle.render() }))
+        .layer(prometheus_layer);
 
     axum::serve(listener, app).await.unwrap();
 
