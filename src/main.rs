@@ -1,3 +1,5 @@
+#[forbid(unsafe_code)]
+
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use axum::{Router, response::Json, routing::get};
