@@ -49,13 +49,13 @@ async fn get_gateways(
                     _ => return Ok(None),
                 };
 
-                // Check if there's an outgoing interface (Oif) attribute
+                // Find the outgoing interface numeric ID
                 if let Some(RouteAttribute::Oif(oif)) = route
                     .attributes
                     .iter()
                     .find(|attr| matches!(attr, RouteAttribute::Oif(_)))
                 {
-                    // Append the Oif value to the IPv6 address if it's IPv6
+                    // Append the outgoing interface ID to IPv6 addresses
                     if let IpAddr::V6(_) = ip_family {
                         gateway_str = format!("{}%{}", gateway_str, oif);
                     }
@@ -86,7 +86,6 @@ async fn get_targets() -> Json<Value> {
         .await
         .unwrap_or(None);
 
-    // Collect the non-None gateway values in a list (Vec<Value>)
     let mut targets = Vec::new();
 
     if let Some(ip4) = ip4_gw {
@@ -97,7 +96,7 @@ async fn get_targets() -> Json<Value> {
         targets.push(Value::String(ip6));
     }
 
-    // Return the JSON with the 'targets' array
+    // Place targets in JSON array as expected by Prometheus 
     Json(json!([{
         "targets": targets
     }]))
