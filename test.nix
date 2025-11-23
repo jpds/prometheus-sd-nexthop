@@ -4,9 +4,24 @@
   name = "prometheus-sd-nexthop";
 
   nodes = {
-    machine =
+    router =
       { pkgs, lib, ... }:
       {
+        networking.firewall.allowedTCPPorts = [ 9198 ];
+
+        services.prometheus.exporters.blackbox = {
+          enable = true;
+          openFirewall = true;
+          configFile = pkgs.writeText "config.yml" (
+            builtins.toJSON {
+              modules.icmp_v6 = {
+                prober = "icmp";
+                icmp.preferred_ip_protocol = "ip6";
+              };
+            }
+          );
+        };
+
         systemd.services.prometheus-sd-nexthop = {
           wantedBy = [ "multi-user.target" ];
           after = [ "network.target" ];
@@ -19,23 +34,92 @@
           };
         };
       };
+
+    prometheus =
+      { pkgs, lib, ... }:
+      {
+        environment.systemPackages = [
+          pkgs.jq
+        ];
+
+        services.prometheus = {
+          enable = true;
+          scrapeConfigs = [
+            {
+              job_name = "prometheus";
+              static_configs = [
+                {
+                  targets = [
+                    "localhost:9090"
+                  ];
+                }
+              ];
+            }
+            {
+              job_name = "blackbox-router-nexthop";
+              metrics_path = "/probe";
+              params = {
+                module = [ "icmp" ];
+              };
+              http_sd_configs = [
+                {
+                  url = "http://router:9198/";
+                }
+              ];
+              relabel_configs = [
+                {
+                  source_labels = [ "__address__" ];
+                  target_label = "__param_target";
+                }
+                {
+                  source_labels = [ "__param_target" ];
+                  target_label = "instance";
+                }
+                {
+                  target_label = "__address__";
+                  replacement = "router:9115";
+                }
+              ];
+            }
+          ];
+        };
+      };
   };
 
   testScript = ''
-    machine.wait_for_unit("prometheus-sd-nexthop")
-    machine.wait_for_open_port(9198)
+    start_all()
 
-    machine.wait_until_succeeds(
+    prometheus.wait_for_unit("prometheus")
+    prometheus.wait_for_open_port(9090)
+
+    router.wait_for_unit("prometheus-blackbox-exporter")
+    router.wait_for_open_port(9115)
+    router.wait_for_unit("prometheus-sd-nexthop")
+    router.wait_for_open_port(9198)
+
+    router.wait_until_succeeds(
       "journalctl -o cat -u prometheus-sd-nexthop.service | grep 'Starting prometheus-sd-nexthop server'"
     )
 
-    machine.systemctl("start network-online.target")
-    machine.wait_for_unit("network-online.target")
+    router.systemctl("start network-online.target")
+    router.wait_for_unit("network-online.target")
 
     import json
 
-    target_json = json.loads(machine.wait_until_succeeds("curl http://localhost:9198/"))
+    target_json = json.loads(router.wait_until_succeeds("curl http://localhost:9198/"))
 
     assert len(target_json[0]['targets']) == 2
+
+    prometheus.wait_until_succeeds(
+      "curl -sf 'http://127.0.0.1:9090/api/v1/query?query=prometheus_sd_discovered_targets\{config=\"blackbox-router-nexthop\"\}' | "
+      + "jq '.data.result[0].value[1]' | grep '\"2\"'"
+    )
+
+    prometheus.wait_until_succeeds(
+      "curl -sf 'http://127.0.0.1:9090/api/v1/query?query=count(up\{job=\"blackbox-router-nexthop\"\}==0)' | "
+      + "jq '.data.result[0].value[1]' | grep '\"2\"'"
+    )
+
+    router.log(router.succeed("systemd-analyze security prometheus-sd-nexthop.service | grep -v '✓'"))
   '';
 }
