@@ -31,6 +31,39 @@
             Group = "prometheus-sd-nexthop";
             Restart = "on-failure";
             DynamicUser = true;
+            CapabilityBoundingSet = [ "" ];
+            DevicePolicy = "closed";
+            LockPersonality = true;
+            MemoryDenyWriteExecute = true;
+            NoNewPrivileges = true;
+            PrivateDevices = true;
+            ProcSubset = "pid";
+            ProtectClock = true;
+            ProtectHome = true;
+            ProtectHostname = true;
+            ProtectControlGroups = true;
+            ProtectKernelLogs = true;
+            ProtectKernelModules = true;
+            ProtectKernelTunables = true;
+            ProtectProc = "invisible";
+            ProtectSystem = "strict";
+            RestrictAddressFamilies = [
+              "AF_INET"
+              "AF_INET6"
+              "AF_NETLINK"
+            ];
+            RestrictNamespaces = true;
+            RestrictRealtime = true;
+            RestrictSUIDSGID = true;
+            SystemCallArchitectures = "native";
+            SystemCallFilter = [
+              # 1. allow a reasonable set of syscalls
+              "@system-service @resources"
+              # 2. and deny unreasonable ones
+              "~@privileged"
+              # 3. then allow the required subset within denied groups
+              "@chown"
+            ];
           };
         };
       };
