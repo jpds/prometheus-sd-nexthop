@@ -148,6 +148,8 @@
       + "jq '.data.result[0].value[1]' | grep '\"2\"'"
     )
 
+    # This should be ==1 for UP, but the integration testing framework blocks
+    # ICMP so just check that the count is valid for DOWN
     prometheus.wait_until_succeeds(
       "curl -sf 'http://127.0.0.1:9090/api/v1/query?query=count(up\{job=\"blackbox-router-nexthop\"\}==0)' | "
       + "jq '.data.result[0].value[1]' | grep '\"2\"'"
