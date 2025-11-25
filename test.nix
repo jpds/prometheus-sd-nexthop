@@ -130,11 +130,7 @@
   };
 
   testScript = ''
-    start_all()
-
-    prometheus.wait_for_unit("prometheus")
-    prometheus.wait_for_open_port(9090)
-
+    router.start()
     router.wait_for_unit("prometheus-blackbox-exporter")
     router.wait_for_open_port(9115)
     router.wait_for_unit("prometheus-sd-nexthop")
@@ -147,6 +143,10 @@
     router.systemctl("start network-online.target")
     router.wait_for_unit("network-online.target")
 
+    prometheus.start()
+    prometheus.wait_for_unit("prometheus")
+    prometheus.wait_for_open_port(9090)
+
     prometheus.wait_until_succeeds(
       "curl -sf 'http://127.0.0.1:9090/api/v1/query?query=sum(axum_http_requests_total)' | "
       + "jq '.data.result[0].value[1]' | grep -v '\"0\"'"
@@ -155,6 +155,11 @@
     prometheus.wait_until_succeeds(
       "curl -sf 'http://127.0.0.1:9090/api/v1/query?query=prometheus_sd_discovered_targets\{config=\"blackbox-router-nexthop\"\}' | "
       + "jq '.data.result[0].value[1]' | grep '\"2\"'"
+    )
+
+    prometheus.wait_until_succeeds(
+      "curl -sf 'http://127.0.0.1:9090/api/v1/query?query=sum(prometheus_sd_http_failures_total)' | "
+      + "jq '.data.result[0].value[1]' | grep '\"0\"'"
     )
 
     # This should be ==1 for UP, but the integration testing framework blocks
