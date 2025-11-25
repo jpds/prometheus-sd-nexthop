@@ -1,5 +1,7 @@
 #[forbid(unsafe_code)]
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::time::SystemTime;
 
 use axum::{Router, response::Json, routing::get};
 use axum_prometheus::PrometheusMetricLayer;
@@ -13,6 +15,24 @@ use rtnetlink::{
 };
 
 use serde_json::{Value, json};
+
+#[derive(Clone, Default)]
+struct ProbeTargets {
+    targets: HashMap<String, SystemTime>,
+}
+
+impl ProbeTargets {
+    fn add_target(&mut self, target_ip: String) {
+        self.targets.insert(target_ip, SystemTime::now());
+    }
+
+    fn get_targets(&self) -> Vec<String> {
+        self.targets
+        .keys()
+        .cloned()
+        .collect()
+    }
+}
 
 async fn get_gateways(
     handle: &rtnetlink::Handle,
@@ -86,19 +106,21 @@ async fn get_targets() -> Json<Value> {
         .await
         .unwrap_or(None);
 
-    let mut targets = Vec::new();
+    let mut probe_targets = ProbeTargets::default();
 
     if let Some(ip4) = ip4_gw {
-        targets.push(Value::String(ip4));
+        probe_targets.add_target(ip4);
     }
 
     if let Some(ip6) = ip6_gw {
-        targets.push(Value::String(ip6));
+        probe_targets.add_target(ip6);
     }
+
+    let target_ips: Vec<String> = probe_targets.get_targets();
 
     // Place targets in JSON array as expected by Prometheus 
     Json(json!([{
-        "targets": targets
+        "targets": target_ips
     }]))
 }
 
