@@ -21,6 +21,8 @@ use serde_json::{Value, json};
 use tokio::sync::Mutex;
 use tokio::time::Duration;
 
+use tower_http::compression::CompressionLayer;
+
 #[derive(Clone, Default)]
 struct ProbeTargets {
     targets: HashMap<String, SystemTime>,
@@ -187,10 +189,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    let metrics_router = Router::new()
+        .route("/metrics", get(|| async move { metric_handle.render() }))
+        .layer(CompressionLayer::new());
+
     let app = Router::new()
         .route("/", get(serve_targets))
         .with_state(shared_targets_state)
-        .route("/metrics", get(|| async move { metric_handle.render() }))
+        .merge(metrics_router)
         .layer(prometheus_layer);
 
     axum::serve(listener, app).await.unwrap();
