@@ -1,8 +1,10 @@
 #[forbid(unsafe_code)]
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::sync::Arc;
 use std::time::SystemTime;
 
+use axum::extract::State;
 use axum::{Router, response::Json, routing::get};
 use axum_prometheus::PrometheusMetricLayer;
 
@@ -16,6 +18,8 @@ use rtnetlink::{
 
 use serde_json::{Value, json};
 
+use tokio::sync::Mutex;
+
 #[derive(Clone, Default)]
 struct ProbeTargets {
     targets: HashMap<String, SystemTime>,
@@ -27,10 +31,7 @@ impl ProbeTargets {
     }
 
     fn get_targets(&self) -> Vec<String> {
-        self.targets
-        .keys()
-        .cloned()
-        .collect()
+        self.targets.keys().cloned().collect()
     }
 }
 
@@ -89,7 +90,7 @@ async fn get_gateways(
     Ok(None)
 }
 
-async fn get_targets() -> Json<Value> {
+async fn collect_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) {
     let (mut connection, handle, _) = new_connection().unwrap();
 
     let _ = connection
@@ -106,7 +107,7 @@ async fn get_targets() -> Json<Value> {
         .await
         .unwrap_or(None);
 
-    let mut probe_targets = ProbeTargets::default();
+    let mut probe_targets = probe_targets.lock().await;
 
     if let Some(ip4) = ip4_gw {
         probe_targets.add_target(ip4);
@@ -115,10 +116,14 @@ async fn get_targets() -> Json<Value> {
     if let Some(ip6) = ip6_gw {
         probe_targets.add_target(ip6);
     }
+}
+
+async fn serve_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) -> Json<Value> {
+    let probe_targets = probe_targets.lock().await;
 
     let target_ips: Vec<String> = probe_targets.get_targets();
 
-    // Place targets in JSON array as expected by Prometheus 
+    // Place targets in JSON array as expected by Prometheus
     Json(json!([{
         "targets": target_ips
     }]))
@@ -126,6 +131,7 @@ async fn get_targets() -> Json<Value> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let shared_targets_state = Arc::new(Mutex::new(ProbeTargets::default()));
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let listener = tokio::net::TcpListener::bind("[::]:9198")
@@ -135,7 +141,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting prometheus-sd-nexthop server at [::]:9198");
 
     let app = Router::new()
-        .route("/", get(get_targets))
+        .route("/", get(serve_targets))
+        .with_state(shared_targets_state)
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .layer(prometheus_layer);
 
