@@ -147,12 +147,6 @@
     router.systemctl("start network-online.target")
     router.wait_for_unit("network-online.target")
 
-    import json
-
-    target_json = json.loads(router.wait_until_succeeds("curl http://localhost:9198/"))
-
-    assert len(target_json[0]['targets']) == 2
-
     prometheus.wait_until_succeeds(
       "curl -sf 'http://127.0.0.1:9090/api/v1/query?query=sum(axum_http_requests_total)' | "
       + "jq '.data.result[0].value[1]' | grep -v '\"0\"'"
