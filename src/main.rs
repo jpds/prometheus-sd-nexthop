@@ -115,10 +115,16 @@ async fn collect_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) 
 
     let ip4_gw = get_gateways(&handle, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))
         .await
-        .unwrap_or(None);
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to get IPv4 gateway: {}", e);
+            None
+        });
     let ip6_gw = get_gateways(&handle, IpAddr::V6(Ipv6Addr::UNSPECIFIED))
         .await
-        .unwrap_or(None);
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to get IPv6 gateway: {}", e);
+            None
+        });
 
     let mut probe_targets = probe_targets.lock().await;
 
