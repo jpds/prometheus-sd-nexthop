@@ -19,6 +19,7 @@ use rtnetlink::{
 use serde_json::{Value, json};
 
 use tokio::sync::Mutex;
+use tokio::time::Duration;
 
 #[derive(Clone, Default)]
 struct ProbeTargets {
@@ -32,6 +33,18 @@ impl ProbeTargets {
 
     fn get_targets(&self) -> Vec<String> {
         self.targets.keys().cloned().collect()
+    }
+
+    fn purge_old_targets(&mut self) {
+        let purge_interval = Duration::from_secs(4 * 60 * 60);
+
+        self.targets.retain(|_, timestamp| {
+            // Delete entries that have a timestamp older than 4 hours ago
+            match timestamp.elapsed() {
+                Ok(elapsed) => elapsed < purge_interval,
+                Err(_) => false,
+            }
+        });
     }
 }
 
@@ -148,6 +161,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 collect_targets(State(shared_targets_state.clone())).await;
 
                 tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+            }
+        }
+    });
+
+    tokio::spawn({
+        // Target cleanup thread
+        let shared_targets_state = shared_targets_state.clone();
+
+        async move {
+            loop {
+                {
+                    let mut probe_targets = shared_targets_state.lock().await;
+                    probe_targets.purge_old_targets();
+                }
+
+                tokio::time::sleep(tokio::time::Duration::from_secs(10 * 60)).await;
             }
         }
     });
