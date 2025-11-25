@@ -90,7 +90,7 @@ async fn get_gateways(
                     .find(|attr| matches!(attr, RouteAttribute::Oif(_)))
                 {
                     // Append the outgoing interface ID to IPv6 addresses
-                    if let IpAddr::V6(_) = ip_family {
+                    if ip_family.is_ipv6() {
                         gateway_str = format!("{}%{}", gateway_str, oif);
                     }
                 }
