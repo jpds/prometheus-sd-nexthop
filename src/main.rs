@@ -140,6 +140,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Starting prometheus-sd-nexthop server at [::]:9198");
 
+    tokio::spawn({
+        let shared_targets_state = shared_targets_state.clone();
+
+        async move {
+            loop {
+                collect_targets(State(shared_targets_state.clone())).await;
+
+                tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+            }
+        }
+    });
+
     let app = Router::new()
         .route("/", get(serve_targets))
         .with_state(shared_targets_state)
