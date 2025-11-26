@@ -8,6 +8,8 @@ use axum::extract::State;
 use axum::{Router, response::Json, routing::get};
 use axum_prometheus::PrometheusMetricLayer;
 
+use clap::Parser;
+
 use futures::stream::TryStreamExt;
 
 use rtnetlink::{
@@ -22,6 +24,22 @@ use tokio::sync::Mutex;
 use tokio::time::Duration;
 
 use tower_http::compression::CompressionLayer;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Target poll interval in minutes
+    #[arg(long, default_value_t = 1)]
+    target_poll_interval: u64,
+
+    /// Target purge interval in minutes
+    #[arg(long, default_value_t = 240)]
+    target_purge_interval: u64,
+
+    /// Port to listen on
+    #[arg(long, default_value_t = 9198)]
+    port: u16,
+}
 
 #[derive(Clone, Default)]
 struct ProbeTargets {
@@ -152,14 +170,22 @@ async fn serve_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) ->
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+
     let shared_targets_state = Arc::new(Mutex::new(ProbeTargets::default()));
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
-    let listener = tokio::net::TcpListener::bind("[::]:9198")
+    let listener = tokio::net::TcpListener::bind(format!("[::]:{}", args.port))
         .await
-        .expect("Failed to bind TCP listener on [::]:9198");
+        .expect(&format!(
+            "Failed to bind TCP listener on [::]:{}",
+            args.port
+        ));
 
-    println!("Starting prometheus-sd-nexthop server at [::]:9198");
+    println!(
+        "Starting prometheus-sd-nexthop server at [::]:{}",
+        args.port
+    );
 
     tokio::spawn({
         let shared_targets_state = shared_targets_state.clone();
@@ -168,7 +194,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             loop {
                 collect_targets(State(shared_targets_state.clone())).await;
 
-                tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(
+                    60 * args.target_poll_interval,
+                ))
+                .await;
             }
         }
     });
@@ -184,7 +213,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     probe_targets.purge_old_targets();
                 }
 
-                tokio::time::sleep(tokio::time::Duration::from_secs(10 * 60)).await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(
+                    60 * args.target_purge_interval,
+                ))
+                .await;
             }
         }
     });
