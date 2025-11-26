@@ -140,8 +140,16 @@
       "journalctl -o cat -u prometheus-sd-nexthop.service | grep 'Starting prometheus-sd-nexthop server'"
     )
 
-    router.systemctl("start network-online.target")
-    router.wait_for_unit("network-online.target")
+    router.succeed(
+      "curl -sf --connect-timeout 2 --max-time 5 http://localhost:9198/ | "
+      + "grep 'targets'"
+    )
+
+    router.succeed(
+      "curl -sf --connect-timeout 2 --max-time 5 http://localhost:9198/metrics | "
+      + "grep 'axum_http_requests_total' | "
+      + "grep 'endpoint=\"/\"}'"
+    )
 
     prometheus.start()
     prometheus.wait_for_unit("prometheus")
