@@ -177,10 +177,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = tokio::net::TcpListener::bind(format!("[::]:{}", args.port))
         .await
-        .expect(&format!(
-            "Failed to bind TCP listener on [::]:{}",
-            args.port
-        ));
+        .unwrap_or_else(|_| panic!("Failed to bind TCP listener on [::]:{}", args.port));
 
     println!(
         "Starting prometheus-sd-nexthop server at [::]:{}",
