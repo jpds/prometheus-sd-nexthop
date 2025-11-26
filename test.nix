@@ -57,12 +57,8 @@
             RestrictSUIDSGID = true;
             SystemCallArchitectures = "native";
             SystemCallFilter = [
-              # 1. allow a reasonable set of syscalls
               "@system-service @resources"
-              # 2. and deny unreasonable ones
               "~@privileged"
-              # 3. then allow the required subset within denied groups
-              "@chown"
             ];
           };
         };
