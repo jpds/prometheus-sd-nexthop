@@ -33,7 +33,7 @@ struct Args {
     target_poll_interval: u64,
 
     /// Target purge interval in minutes
-    #[arg(long, default_value_t = 240)]
+    #[arg(long, default_value_t = 20)]
     target_purge_interval: u64,
 
     /// Port to listen on
@@ -56,10 +56,10 @@ impl ProbeTargets {
     }
 
     fn purge_old_targets(&mut self) {
-        let purge_interval = Duration::from_secs(4 * 60 * 60);
+        let purge_interval = Duration::from_secs(60 * 60);
 
         self.targets.retain(|_, timestamp| {
-            // Delete entries that have a timestamp older than 4 hours ago
+            // Delete entries that have a timestamp older than one hour
             match timestamp.elapsed() {
                 Ok(elapsed) => elapsed < purge_interval,
                 Err(_) => false,
@@ -185,6 +185,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     tokio::spawn({
+        // Target collection thread
         let shared_targets_state = shared_targets_state.clone();
 
         async move {
