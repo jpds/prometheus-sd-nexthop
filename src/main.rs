@@ -172,7 +172,7 @@ async fn serve_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) ->
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    let shared_targets_state = Arc::new(Mutex::new(ProbeTargets::default()));
+    let targets_state = Arc::new(Mutex::new(ProbeTargets::default()));
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let listener = tokio::net::TcpListener::bind(format!("[::]:{}", args.port))
@@ -186,11 +186,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tokio::spawn({
         // Target collection thread
-        let shared_targets_state = shared_targets_state.clone();
+        let targets_state = targets_state.clone();
 
         async move {
             loop {
-                collect_targets(State(shared_targets_state.clone())).await;
+                collect_targets(State(targets_state.clone())).await;
 
                 tokio::time::sleep(tokio::time::Duration::from_secs(
                     60 * args.target_poll_interval,
@@ -202,12 +202,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tokio::spawn({
         // Target cleanup thread
-        let shared_targets_state = shared_targets_state.clone();
+        let targets_state = targets_state.clone();
 
         async move {
             loop {
                 {
-                    let mut probe_targets = shared_targets_state.lock().await;
+                    let mut probe_targets = targets_state.lock().await;
                     probe_targets.purge_old_targets();
                 }
 
@@ -225,7 +225,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/", get(serve_targets))
-        .with_state(shared_targets_state)
+        .with_state(targets_state)
         .merge(metrics_router)
         .layer(prometheus_layer);
 
