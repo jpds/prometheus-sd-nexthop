@@ -206,15 +206,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         async move {
             loop {
-                {
-                    let mut probe_targets = targets_state.lock().await;
-                    probe_targets.purge_old_targets();
-                }
-
                 tokio::time::sleep(tokio::time::Duration::from_secs(
                     60 * args.target_purge_interval,
                 ))
                 .await;
+
+                {
+                    let mut probe_targets = targets_state.lock().await;
+                    probe_targets.purge_old_targets();
+                }
             }
         }
     });
