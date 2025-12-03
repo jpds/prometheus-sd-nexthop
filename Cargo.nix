@@ -25,7 +25,7 @@ args@{
   cargoConfig ? {},
 }:
 let
-  nixifiedLockHash = "e1c1d0aa8b43493c90299c9a279f4843c0974e46237eb7a250a7c4eb5239a6cd";
+  nixifiedLockHash = "fdd5589c1f0152f23fa528203e4ee96da8747b03007cd86ae860d247b3537b98";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -2120,6 +2120,7 @@ in
       axum_prometheus = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".axum-prometheus."0.9.0" { inherit profileName; }).out;
       clap = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".clap."4.5.53" { inherit profileName; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.31" { inherit profileName; }).out;
+      rand = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.9.2" { inherit profileName; }).out;
       rtnetlink = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rtnetlink."0.18.1" { inherit profileName; }).out;
       serde_json = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.145" { inherit profileName; }).out;
       tokio = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.48.0" { inherit profileName; }).out;
@@ -2175,7 +2176,9 @@ in
     src = fetchCratesIo { inherit name version; sha256 = "6db2770f06117d490610c7488547d543617b21bfa07796d7a12f6f1bd53850d1"; };
     features = builtins.concatLists [
       [ "alloc" ]
+      [ "default" ]
       [ "os_rng" ]
+      [ "small_rng" ]
       [ "std" ]
       [ "std_rng" ]
       [ "thread_rng" ]

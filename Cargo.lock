@@ -1547,6 +1547,7 @@ dependencies = [
  "clap",
  "futures",
  "gix",
+ "rand",
  "rtnetlink",
  "serde_json",
  "tokio",
