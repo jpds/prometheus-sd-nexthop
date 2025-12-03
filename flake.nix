@@ -20,6 +20,17 @@
         rustPkgs = pkgs.rustBuilder.makePackageSet {
           rustVersion = "latest";
           packageFun = import ./Cargo.nix;
+
+          packageOverrides =
+            pkgs:
+            pkgs.rustBuilder.overrides.all
+            ++ [
+              (pkgs.rustBuilder.rustLib.makeOverride {
+                overrideAttrs = drv: {
+                  env.PROMETHEUS_SD_NEXTHOP_NIX_BUILD_REV = self.rev or self.dirtyRev or null;
+                };
+              })
+            ];
         };
 
       in
