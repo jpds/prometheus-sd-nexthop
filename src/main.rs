@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 use std::collections::HashMap;
+use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -25,8 +26,14 @@ use tokio::time::Duration;
 
 use tower_http::compression::CompressionLayer;
 
+fn get_version_and_hash() -> &'static str {
+    Box::leak(
+        format!("{} ({})", env!("CARGO_PKG_VERSION"), env!("BUILD_GIT_HASH")).into_boxed_str(),
+    )
+}
+
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version = get_version_and_hash(), about, long_about = None)]
 struct Args {
     /// Target poll interval in minutes
     #[arg(long, default_value_t = 1)]
@@ -180,7 +187,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| panic!("Failed to bind TCP listener on [::]:{}", args.port));
 
     println!(
-        "Starting prometheus-sd-nexthop server at [::]:{}",
+        "Starting prometheus-sd-nexthop {} server at [::]:{}",
+        get_version_and_hash(),
         args.port
     );
 
