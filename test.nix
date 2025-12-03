@@ -133,7 +133,7 @@
     router.wait_for_open_port(9198)
 
     router.wait_until_succeeds(
-      "journalctl -o cat -u prometheus-sd-nexthop.service | grep 'Starting prometheus-sd-nexthop server'"
+      "journalctl -o cat -u prometheus-sd-nexthop.service | grep 'Starting prometheus-sd-nexthop ${packages.prometheus-sd-nexthop.version}'"
     )
 
     router.succeed(
