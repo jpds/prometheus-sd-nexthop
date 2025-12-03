@@ -13,6 +13,8 @@ use clap::Parser;
 
 use futures::stream::TryStreamExt;
 
+use rand::Rng;
+
 use rtnetlink::{
     RouteMessageBuilder, new_connection,
     packet_route::route::{RouteAddress, RouteAttribute, RouteProtocol, RouteScope, RouteType},
@@ -224,8 +226,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         async move {
             loop {
+                // Add a up-to-ten-minutes random delay to cleanup thread loop
+                let random_delay = tokio::task::block_in_place(|| {
+                    let mut rng = rand::rng();
+                    rng.random_range(1..=60 * 10)
+                });
+
                 tokio::time::sleep(tokio::time::Duration::from_secs(
-                    60 * args.target_purge_interval,
+                    60 * args.target_purge_interval + random_delay,
                 ))
                 .await;
 
