@@ -7,7 +7,7 @@ use std::time::SystemTime;
 
 use axum::extract::State;
 use axum::{Router, response::Json, routing::get};
-use axum_prometheus::PrometheusMetricLayer;
+use axum_prometheus::{PrometheusMetricLayer, metrics::gauge};
 
 use clap::Parser;
 
@@ -181,6 +181,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let targets_state = Arc::new(Mutex::new(ProbeTargets::default()));
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+
+    let _build_info_guage = gauge!("prometheus_sd_nexthop_build_info", "version" => env!("CARGO_PKG_VERSION"), "rev" => env!("BUILD_GIT_HASH")).set(1);
 
     let listener = tokio::net::TcpListener::bind(format!("[::]:{}", args.port))
         .await
