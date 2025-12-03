@@ -143,6 +143,11 @@
 
     router.succeed(
       "curl -sf --connect-timeout 2 --max-time 5 http://localhost:9198/metrics | "
+      + "grep 'prometheus_sd_nexthop_build_info' | "
+      + "grep '${packages.prometheus-sd-nexthop.version}'"
+    )
+    router.succeed(
+      "curl -sf --connect-timeout 2 --max-time 5 http://localhost:9198/metrics | "
       + "grep 'axum_http_requests_total' | "
       + "grep 'endpoint=\"/\"}'"
     )
