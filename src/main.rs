@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::extract::State;
 use axum::{Router, response::Json, routing::get};
@@ -202,6 +202,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             loop {
                 collect_targets(State(targets_state.clone())).await;
 
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time went backwards")
+                    .as_secs_f64();
+                let _target_timestamp_gauge =
+                    gauge!("prometheus_sd_nexthop_targets_collection_timestamp_seconds")
+                        .set(timestamp);
+
                 tokio::time::sleep(tokio::time::Duration::from_secs(
                     60 * args.target_poll_interval,
                 ))
@@ -225,6 +233,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let mut probe_targets = targets_state.lock().await;
                     probe_targets.purge_old_targets();
                 }
+
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time went backwards")
+                    .as_secs_f64();
+                let _target_timestamp_gauge =
+                    gauge!("prometheus_sd_nexthop_targets_purge_timestamp_seconds").set(timestamp);
             }
         }
     });
