@@ -32,7 +32,9 @@
           default = packages.prometheus-sd-nexthop;
         };
 
-        checks.prometheus-sd-nexthop = pkgs.testers.runNixOSTest (import ./test.nix { inherit packages; });
+        checks.prometheus-sd-nexthop = pkgs.testers.runNixOSTest (
+          import ./test.nix { inherit packages gitRev; }
+        );
       }
     );
 }
