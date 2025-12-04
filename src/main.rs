@@ -42,7 +42,7 @@ struct Args {
     target_poll_interval: u64,
 
     /// Target purge interval in minutes
-    #[arg(long, default_value_t = 20)]
+    #[arg(long, default_value_t = 60)]
     target_purge_interval: u64,
 
     /// Port to listen on
