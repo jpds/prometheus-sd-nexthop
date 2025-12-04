@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap_or_else(|| "unknown".to_string())
     });
 
-    let git_hash_short = git_hash.get(0..8).unwrap_or_else(|| &git_hash);
+    let git_hash_short = git_hash.get(0..10).unwrap_or_else(|| &git_hash);
 
     println!("cargo:rustc-env=BUILD_GIT_HASH={}", git_hash_short);
 

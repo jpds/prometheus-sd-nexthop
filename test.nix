@@ -134,7 +134,7 @@
 
     router.wait_until_succeeds(
       "journalctl -o cat -u prometheus-sd-nexthop.service | "
-      + "grep 'Starting prometheus-sd-nexthop ${packages.prometheus-sd-nexthop.version} (${builtins.substring 0 8 gitRev})'"
+      + "grep 'Starting prometheus-sd-nexthop ${packages.prometheus-sd-nexthop.version} (${builtins.substring 0 10 gitRev})'"
     )
 
     router.succeed(
@@ -146,7 +146,7 @@
       "curl -sf --connect-timeout 2 --max-time 5 http://localhost:9198/metrics | "
       + "grep 'prometheus_sd_nexthop_build_info' | "
       + "grep '${packages.prometheus-sd-nexthop.version}' | "
-      + "grep '${builtins.substring 0 8 gitRev}'"
+      + "grep '${builtins.substring 0 10 gitRev}'"
     )
     router.succeed(
       "curl -sf --connect-timeout 2 --max-time 5 http://localhost:9198/metrics | "
