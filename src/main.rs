@@ -184,8 +184,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let targets_state = Arc::new(Mutex::new(ProbeTargets::default()));
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
-    let _build_info_guage = gauge!("prometheus_sd_nexthop_build_info", "version" => env!("CARGO_PKG_VERSION"), "rev" => env!("BUILD_GIT_HASH")).set(1);
-
     let listener = tokio::net::TcpListener::bind(format!("[::]:{}", args.port))
         .await
         .unwrap_or_else(|_| panic!("Failed to bind TCP listener on [::]:{}", args.port));
@@ -251,6 +249,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     });
+
+    let _build_info_guage = gauge!("prometheus_sd_nexthop_build_info", "version" => env!("CARGO_PKG_VERSION"), "rev" => env!("BUILD_GIT_HASH")).set(1);
 
     let metrics_router = Router::new()
         .route("/metrics", get(|| async move { metric_handle.render() }))
