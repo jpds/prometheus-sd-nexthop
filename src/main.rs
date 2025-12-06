@@ -206,9 +206,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .duration_since(UNIX_EPOCH)
                     .expect("Time went backwards")
                     .as_secs_f64();
-                let _target_timestamp_gauge =
-                    gauge!("prometheus_sd_nexthop_targets_collection_timestamp_seconds")
-                        .set(timestamp);
+                gauge!("prometheus_sd_nexthop_targets_collection_timestamp_seconds").set(timestamp);
 
                 tokio::time::sleep(tokio::time::Duration::from_secs(
                     60 * args.target_poll_interval,
@@ -244,13 +242,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .duration_since(UNIX_EPOCH)
                     .expect("Time went backwards")
                     .as_secs_f64();
-                let _target_timestamp_gauge =
-                    gauge!("prometheus_sd_nexthop_targets_purge_timestamp_seconds").set(timestamp);
+                gauge!("prometheus_sd_nexthop_targets_purge_timestamp_seconds").set(timestamp);
             }
         }
     });
 
-    let _build_info_guage = gauge!("prometheus_sd_nexthop_build_info", "version" => env!("CARGO_PKG_VERSION"), "rev" => env!("BUILD_GIT_HASH")).set(1);
+    gauge!("prometheus_sd_nexthop_build_info", "version" => env!("CARGO_PKG_VERSION"), "rev" => env!("BUILD_GIT_HASH")).set(1);
 
     let metrics_router = Router::new()
         .route("/metrics", get(|| async move { metric_handle.render() }))
