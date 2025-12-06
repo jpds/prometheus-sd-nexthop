@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use axum::extract::State;
 use axum::{Router, response::Json, routing::get};
-use axum_prometheus::{PrometheusMetricLayer, metrics::gauge};
+use axum_prometheus::{PrometheusMetricLayer, metrics::gauge, metrics::histogram};
 
 use clap::Parser;
 
@@ -142,18 +142,29 @@ async fn collect_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) 
 
     tokio::spawn(connection);
 
+    let get_gateways_duration_time = Instant::now();
+
     let ip4_gw = get_gateways(&handle, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))
         .await
         .unwrap_or_else(|e| {
             eprintln!("Failed to get IPv4 gateway: {}", e);
             None
         });
+
+    histogram!("prometheus_sd_nexthop_get_gateway_duration", "family" => "ipv4")
+        .record(get_gateways_duration_time.elapsed());
+
+    let get_gateways_duration_time = Instant::now();
+
     let ip6_gw = get_gateways(&handle, IpAddr::V6(Ipv6Addr::UNSPECIFIED))
         .await
         .unwrap_or_else(|e| {
             eprintln!("Failed to get IPv6 gateway: {}", e);
             None
         });
+
+    histogram!("prometheus_sd_nexthop_get_gateway_duration", "family" => "ipv6")
+        .record(get_gateways_duration_time.elapsed());
 
     let mut probe_targets = probe_targets.lock().await;
 
