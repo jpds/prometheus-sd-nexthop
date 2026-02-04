@@ -1,39 +1,40 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
-    cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.12";
-    flake-utils.follows = "cargo2nix/flake-utils";
-    # nixpkgs.follows = "cargo2nix/nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    crane.url = "github:ipetkov/crane";
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
-    inputs:
-    with inputs;
+    {
+      self,
+      nixpkgs,
+      crane,
+      flake-utils,
+      ...
+    }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ cargo2nix.overlays.default ];
         };
 
-        rustPkgs = pkgs.rustBuilder.makePackageSet {
-          rustVersion = "latest";
-          packageFun = import ./Cargo.nix;
-        };
+        craneLib = crane.mkLib pkgs;
 
         gitRev = self.rev or self.dirtyRev or null;
-      in
-      rec {
-        packages = {
-          prometheus-sd-nexthop = (rustPkgs.workspace.prometheus-sd-nexthop { }).overrideAttrs {
-            env.PROMETHEUS_SD_NEXTHOP_NIX_BUILD_REV = gitRev;
-          };
-          default = packages.prometheus-sd-nexthop;
+
+        prometheus-sd-nexthop = craneLib.buildPackage {
+          src = craneLib.cleanCargoSource ./.;
+
+          env.PROMETHEUS_SD_NEXTHOP_NIX_BUILD_REV = gitRev;
         };
+      in
+      {
+        packages.default = prometheus-sd-nexthop;
 
         checks.prometheus-sd-nexthop = pkgs.testers.runNixOSTest (
-          import ./test.nix { inherit packages gitRev; }
+          import ./test.nix { inherit prometheus-sd-nexthop gitRev; }
         );
       }
     );

@@ -1,4 +1,4 @@
-{ packages, gitRev, ... }:
+{ prometheus-sd-nexthop, gitRev, ... }:
 
 {
   name = "prometheus-sd-nexthop";
@@ -26,7 +26,7 @@
           wantedBy = [ "multi-user.target" ];
           after = [ "network.target" ];
           serviceConfig = {
-            ExecStart = "${lib.getExe packages.prometheus-sd-nexthop}";
+            ExecStart = "${lib.getExe prometheus-sd-nexthop}";
             User = "prometheus-sd-nexthop";
             Group = "prometheus-sd-nexthop";
             Restart = "on-failure";
@@ -134,7 +134,7 @@
 
     router.wait_until_succeeds(
       "journalctl -o cat -u prometheus-sd-nexthop.service | "
-      + "grep 'Starting prometheus-sd-nexthop ${packages.prometheus-sd-nexthop.version} (${builtins.substring 0 10 gitRev})'"
+      + "grep 'Starting prometheus-sd-nexthop ${prometheus-sd-nexthop.version} (${builtins.substring 0 10 gitRev})'"
     )
 
     router.succeed(
@@ -145,7 +145,7 @@
     router.succeed(
       "curl -sf --connect-timeout 2 --max-time 5 http://localhost:9198/metrics | "
       + "grep 'prometheus_sd_nexthop_build_info' | "
-      + "grep '${packages.prometheus-sd-nexthop.version}' | "
+      + "grep '${prometheus-sd-nexthop.version}' | "
       + "grep '${builtins.substring 0 10 gitRev}'"
     )
     router.succeed(
