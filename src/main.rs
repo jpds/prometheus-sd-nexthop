@@ -15,7 +15,7 @@ use futures::stream::TryStreamExt;
 
 use once_cell::sync::Lazy;
 
-use rand::Rng;
+use rand::RngExt;
 
 use rtnetlink::{
     RouteMessageBuilder, new_connection,
