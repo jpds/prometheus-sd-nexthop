@@ -13,6 +13,8 @@ use clap::Parser;
 
 use futures::stream::TryStreamExt;
 
+use once_cell::sync::Lazy;
+
 use rand::Rng;
 
 use rtnetlink::{
@@ -28,10 +30,11 @@ use tokio::time::Duration;
 
 use tower_http::compression::CompressionLayer;
 
+static VERSION: Lazy<String> =
+    Lazy::new(|| format!("{} ({})", env!("CARGO_PKG_VERSION"), env!("BUILD_GIT_HASH")));
+
 fn get_version_and_hash() -> &'static str {
-    Box::leak(
-        format!("{} ({})", env!("CARGO_PKG_VERSION"), env!("BUILD_GIT_HASH")).into_boxed_str(),
-    )
+    VERSION.as_str()
 }
 
 #[derive(Parser, Debug)]
