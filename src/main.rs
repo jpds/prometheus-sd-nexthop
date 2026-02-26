@@ -157,33 +157,44 @@ async fn get_gateways(
     let mut routes = handle.route().get(route).execute();
 
     while let Some(route) = routes.try_next().await? {
-        if route.header.destination_prefix_length == 0 {
-            if let Some(RouteAttribute::Gateway(gateway)) = route
-                .attributes
-                .iter()
-                .find(|attr| matches!(attr, RouteAttribute::Gateway(_)))
-            {
-                let mut gateway_str = match gateway {
-                    RouteAddress::Inet(addr) => addr.to_string(),
-                    RouteAddress::Inet6(addr) => addr.to_string(),
-                    _ => return Ok(None),
-                };
+        if route.header.destination_prefix_length != 0 {
+            continue;
+        }
 
-                // Find the outgoing interface numeric ID
-                if let Some(RouteAttribute::Oif(oif)) = route
-                    .attributes
-                    .iter()
-                    .find(|attr| matches!(attr, RouteAttribute::Oif(_)))
-                {
-                    // Append the outgoing interface ID to IPv6 addresses
-                    if ip_family.is_ipv6() {
-                        gateway_str = format!("{}%{}", gateway_str, oif);
-                    }
-                }
+        let mut gateway = None;
+        let mut oif = None;
 
-                return Ok(Some(gateway_str));
+        for attr in &route.attributes {
+            match attr {
+                RouteAttribute::Gateway(gw) => gateway = Some(gw),
+                RouteAttribute::Oif(id) => oif = Some(id),
+                _ => {}
             }
         }
+
+        let gateway = match gateway {
+            Some(gw) => gw,
+            None => continue,
+        };
+
+        let gateway_str = match gateway {
+            RouteAddress::Inet(addr) => addr.to_string(),
+            RouteAddress::Inet6(addr) => {
+                if addr.is_unicast_link_local() {
+                    if let Some(oif) = oif {
+                        format!("{}%{}", addr, oif)
+                    } else {
+                        addr.to_string()
+                    }
+                } else {
+                    addr.to_string()
+                }
+            }
+
+            _ => return Ok(None),
+        };
+
+        return Ok(Some(gateway_str));
     }
 
     Ok(None)
