@@ -77,6 +77,63 @@ impl ProbeTargets {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn add_and_get_targets() {
+        let mut probe = ProbeTargets::default();
+
+        probe.add_target("192.168.1.1".to_string());
+        probe.add_target("10.0.0.1".to_string());
+
+        let mut targets = probe.get_targets();
+        targets.sort();
+
+        assert_eq!(targets.len(), 2);
+        assert_eq!(
+            targets,
+            vec!["10.0.0.1".to_string(), "192.168.1.1".to_string(),]
+        );
+    }
+
+    #[test]
+    fn purge_removes_old_targets() {
+        let mut probe = ProbeTargets::default();
+
+        // Insert a fresh target
+        probe.add_target("192.168.1.1".to_string());
+
+        // Insert an old target by manually setting timestamp
+        let old_time = SystemTime::now() - Duration::from_secs(60 * 60 + 1);
+        probe.targets.insert("10.0.0.1".to_string(), old_time);
+
+        probe.purge_old_targets();
+
+        let targets = probe.get_targets();
+
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0], "192.168.1.1".to_string());
+    }
+
+    #[test]
+    fn purge_keeps_recent_targets() {
+        let mut probe = ProbeTargets::default();
+
+        let recent_time = SystemTime::now() - Duration::from_secs(30);
+        probe.targets.insert("10.0.0.1".to_string(), recent_time);
+
+        probe.purge_old_targets();
+
+        let targets = probe.get_targets();
+
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0], "10.0.0.1".to_string());
+    }
+}
+
 async fn get_gateways(
     handle: &rtnetlink::Handle,
     ip_family: IpAddr,
