@@ -206,7 +206,7 @@ async fn collect_targets(
 
     let get_gateways_duration_time = Instant::now();
 
-    let ip4_gw = get_gateways(&handle, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))
+    let ip4_gw = get_gateways(&handle, IpAddr::V4(Ipv4Addr::UNSPECIFIED))
         .await
         .unwrap_or_else(|e| {
             eprintln!("Failed to get IPv4 gateway: {}", e);
