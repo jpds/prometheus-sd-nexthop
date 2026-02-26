@@ -189,8 +189,13 @@ async fn get_gateways(
     Ok(None)
 }
 
-async fn collect_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) {
-    let (mut connection, handle, _) = new_connection().unwrap();
+async fn collect_targets(
+    State(probe_targets): State<Arc<Mutex<ProbeTargets>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (mut connection, handle, _) = new_connection().map_err(|e| {
+        eprintln!("Failed to create netlink connection: {e}");
+        e
+    })?;
 
     let _ = connection
         .socket_mut()
@@ -232,6 +237,8 @@ async fn collect_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) 
     if let Some(ip6) = ip6_gw {
         probe_targets.add_target(ip6);
     }
+
+    Ok(())
 }
 
 async fn serve_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) -> Json<Value> {
@@ -268,7 +275,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         async move {
             loop {
-                collect_targets(State(targets_state.clone())).await;
+                if let Err(e) = collect_targets(State(targets_state.clone())).await {
+                    eprintln!("Failed to collect targets: {e}");
+                }
 
                 let timestamp = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
