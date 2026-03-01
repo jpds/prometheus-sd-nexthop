@@ -77,7 +77,7 @@ impl ProbeTargets {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::{Duration, SystemTime};
+    use std::time::Duration;
 
     #[test]
     fn add_and_get_targets() {
