@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // If no Git repository available, read REV from Nix definition
-    let git_hash = git_hash.clone().unwrap_or_else(|| {
+    let git_hash = git_hash.unwrap_or_else(|| {
         option_env!("PROMETHEUS_SD_NEXTHOP_NIX_BUILD_REV")
             .map(|v| v.to_string())
             .unwrap_or_else(|| "unknown".to_string())
