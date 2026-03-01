@@ -199,10 +199,12 @@ async fn get_gateways(
     Ok(None)
 }
 
-async fn collect_targets(
-    probe_targets: Arc<Mutex<ProbeTargets>>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let (mut connection, handle, _) = new_connection()?;
+async fn fetch_gateway(addr: IpAddr, family: &str) -> Option<String> {
+    let start = Instant::now();
+
+    let (mut connection, handle, _) = new_connection()
+        .map_err(|e| error!("Failed to create netlink connection for {family}: {e}"))
+        .ok()?;
 
     let _ = connection
         .socket_mut()
@@ -211,29 +213,24 @@ async fn collect_targets(
 
     tokio::spawn(connection);
 
-    let get_gateways_duration_time = Instant::now();
+    let result = get_gateways(&handle, addr).await.unwrap_or_else(|e| {
+        error!("Failed to get {family} gateway: {e}");
+        None
+    });
 
-    let ip4_gw = get_gateways(&handle, IpAddr::V4(Ipv4Addr::UNSPECIFIED))
-        .await
-        .unwrap_or_else(|e| {
-            error!("Failed to get IPv4 gateway: {}", e);
-            None
-        });
+    histogram!("prometheus_sd_nexthop_get_gateway_duration", "family" => family.to_owned())
+        .record(start.elapsed());
 
-    histogram!("prometheus_sd_nexthop_get_gateway_duration", "family" => "ipv4")
-        .record(get_gateways_duration_time.elapsed());
+    result
+}
 
-    let get_gateways_duration_time = Instant::now();
-
-    let ip6_gw = get_gateways(&handle, IpAddr::V6(Ipv6Addr::UNSPECIFIED))
-        .await
-        .unwrap_or_else(|e| {
-            error!("Failed to get IPv6 gateway: {}", e);
-            None
-        });
-
-    histogram!("prometheus_sd_nexthop_get_gateway_duration", "family" => "ipv6")
-        .record(get_gateways_duration_time.elapsed());
+async fn collect_targets(
+    probe_targets: Arc<Mutex<ProbeTargets>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (ip4_gw, ip6_gw) = tokio::join!(
+        fetch_gateway(IpAddr::V4(Ipv4Addr::UNSPECIFIED), "ipv4"),
+        fetch_gateway(IpAddr::V6(Ipv6Addr::UNSPECIFIED), "ipv6"),
+    );
 
     let mut probe_targets = probe_targets.lock().await;
 
