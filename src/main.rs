@@ -312,10 +312,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         async move {
             loop {
                 // Add a up-to-thirty-minute random delay to cleanup thread loop
-                let random_delay = tokio::task::block_in_place(|| {
-                    let mut rng = rand::rng();
-                    rng.random_range(1..=60 * 30)
-                });
+                let random_delay = rand::rng().random_range(1..=60u64 * 30);
 
                 tokio::time::sleep(tokio::time::Duration::from_secs(
                     60 * args.target_purge_interval + random_delay,
