@@ -298,10 +298,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .as_secs_f64();
                 gauge!("prometheus_sd_nexthop_targets_collection_timestamp_seconds").set(timestamp);
 
-                tokio::time::sleep(tokio::time::Duration::from_secs(
-                    60 * args.target_poll_interval,
-                ))
-                .await;
+                tokio::time::sleep(Duration::from_secs(60 * args.target_poll_interval)).await;
             }
         }
     });
@@ -315,7 +312,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Add a up-to-thirty-minute random delay to cleanup thread loop
                 let random_delay = rand::rng().random_range(1..=60u64 * 30);
 
-                tokio::time::sleep(tokio::time::Duration::from_secs(
+                tokio::time::sleep(Duration::from_secs(
                     60 * args.target_purge_interval + random_delay,
                 ))
                 .await;
