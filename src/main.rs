@@ -202,7 +202,7 @@ async fn get_gateways(
 }
 
 async fn collect_targets(
-    State(probe_targets): State<Arc<Mutex<ProbeTargets>>>,
+    probe_targets: Arc<Mutex<ProbeTargets>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (mut connection, handle, _) = new_connection().map_err(|e| {
         eprintln!("Failed to create netlink connection: {e}");
@@ -287,7 +287,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         async move {
             loop {
-                if let Err(e) = collect_targets(State(targets_state.clone())).await {
+                if let Err(e) = collect_targets(targets_state.clone()).await {
                     eprintln!("Failed to collect targets: {e}");
                 }
 
