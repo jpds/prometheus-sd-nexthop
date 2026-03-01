@@ -10,7 +10,6 @@ axum = "0.8.6"
 axum-prometheus = "0.10.0"
 clap = { version = "4.5.53", features = ["derive"] }
 futures = "0.3.31"
-once_cell = "1.21.3"
 rand = "0.10.0"
 rtnetlink = "0.20.0"
 serde_json = "1.0.145"

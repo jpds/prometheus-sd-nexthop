@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use axum::extract::State;
@@ -12,8 +12,6 @@ use axum_prometheus::{PrometheusMetricLayer, metrics::gauge, metrics::histogram}
 use clap::Parser;
 
 use futures::stream::TryStreamExt;
-
-use once_cell::sync::Lazy;
 
 use rand::RngExt;
 
@@ -30,8 +28,8 @@ use tokio::time::Duration;
 
 use tower_http::compression::CompressionLayer;
 
-static VERSION: Lazy<String> =
-    Lazy::new(|| format!("{} ({})", env!("CARGO_PKG_VERSION"), env!("BUILD_GIT_HASH")));
+static VERSION: LazyLock<String> =
+    LazyLock::new(|| format!("{} ({})", env!("CARGO_PKG_VERSION"), env!("BUILD_GIT_HASH")));
 
 fn get_version_and_hash() -> &'static str {
     VERSION.as_str()

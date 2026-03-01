@@ -1635,7 +1635,6 @@ dependencies = [
  "clap",
  "futures",
  "gix",
- "once_cell",
  "rand 0.10.0",
  "rtnetlink",
  "serde_json",
