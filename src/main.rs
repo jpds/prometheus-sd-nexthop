@@ -274,9 +274,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| panic!("Failed to bind TCP listener on {}", addr));
 
     println!(
-        "Starting prometheus-sd-nexthop {} server at [::]:{}",
+        "Starting prometheus-sd-nexthop {} server at {}",
         VERSION.as_str(),
-        args.port
+        addr
     );
 
     tokio::spawn({
