@@ -28,6 +28,8 @@ use tokio::time::Duration;
 
 use tower_http::compression::CompressionLayer;
 
+use tracing::{error, info};
+
 static VERSION: LazyLock<String> =
     LazyLock::new(|| format!("{} ({})", env!("CARGO_PKG_VERSION"), env!("BUILD_GIT_HASH")));
 
@@ -53,8 +55,8 @@ struct ProbeTargets {
 }
 
 impl ProbeTargets {
-    fn add_target(&mut self, target_ip: String) {
-        self.targets.insert(target_ip, SystemTime::now());
+    fn add_target(&mut self, target_ip: String) -> bool {
+        self.targets.insert(target_ip, SystemTime::now()).is_none()
     }
 
     fn get_targets(&self) -> Vec<String> {
@@ -214,7 +216,7 @@ async fn collect_targets(
     let ip4_gw = get_gateways(&handle, IpAddr::V4(Ipv4Addr::UNSPECIFIED))
         .await
         .unwrap_or_else(|e| {
-            eprintln!("Failed to get IPv4 gateway: {}", e);
+            error!("Failed to get IPv4 gateway: {}", e);
             None
         });
 
@@ -226,7 +228,7 @@ async fn collect_targets(
     let ip6_gw = get_gateways(&handle, IpAddr::V6(Ipv6Addr::UNSPECIFIED))
         .await
         .unwrap_or_else(|e| {
-            eprintln!("Failed to get IPv6 gateway: {}", e);
+            error!("Failed to get IPv6 gateway: {}", e);
             None
         });
 
@@ -236,11 +238,15 @@ async fn collect_targets(
     let mut probe_targets = probe_targets.lock().await;
 
     if let Some(ip4) = ip4_gw {
-        probe_targets.add_target(ip4);
+        if probe_targets.add_target(ip4.clone()) {
+            info!("Discovered IPv4 gateway: {}", ip4);
+        }
     }
 
     if let Some(ip6) = ip6_gw {
-        probe_targets.add_target(ip6);
+        if probe_targets.add_target(ip6.clone()) {
+            info!("Discovered IPv6 gateway: {}", ip6);
+        }
     }
 
     Ok(())
@@ -263,6 +269,8 @@ async fn serve_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) ->
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt::init();
+
     let args = Args::parse();
 
     let targets_state = Arc::new(Mutex::new(ProbeTargets::default()));
@@ -273,7 +281,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .unwrap_or_else(|_| panic!("Failed to bind TCP listener on {}", addr));
 
-    println!(
+    info!(
         "Starting prometheus-sd-nexthop {} server at {}",
         VERSION.as_str(),
         addr
@@ -286,7 +294,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         async move {
             loop {
                 if let Err(e) = collect_targets(targets_state.clone()).await {
-                    eprintln!("Failed to collect targets: {e}");
+                    error!("Failed to collect targets: {e}");
                 }
 
                 let timestamp = SystemTime::now()
