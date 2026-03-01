@@ -255,9 +255,13 @@ async fn serve_targets(State(probe_targets): State<Arc<Mutex<ProbeTargets>>>) ->
     let target_ips: Vec<String> = probe_targets.get_targets();
 
     // Place targets in JSON array as expected by Prometheus
-    Json(json!([{
-        "targets": target_ips
-    }]))
+    if target_ips.is_empty() {
+        Json(json!([]))
+    } else {
+        Json(json!([{
+            "targets": target_ips
+        }]))
+    }
 }
 
 #[tokio::main]
