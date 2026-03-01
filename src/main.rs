@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 use std::collections::HashMap;
 use std::env;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::{Arc, LazyLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
@@ -267,9 +267,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let targets_state = Arc::new(Mutex::new(ProbeTargets::default()));
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
-    let listener = tokio::net::TcpListener::bind(format!("[::]:{}", args.port))
+    let addr = SocketAddr::from((Ipv6Addr::UNSPECIFIED, args.port));
+    let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .unwrap_or_else(|_| panic!("Failed to bind TCP listener on [::]:{}", args.port));
+        .unwrap_or_else(|_| panic!("Failed to bind TCP listener on {}", addr));
 
     println!(
         "Starting prometheus-sd-nexthop {} server at [::]:{}",
