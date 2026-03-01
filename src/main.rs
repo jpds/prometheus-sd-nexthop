@@ -200,10 +200,7 @@ async fn get_gateways(
 async fn collect_targets(
     probe_targets: Arc<Mutex<ProbeTargets>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (mut connection, handle, _) = new_connection().map_err(|e| {
-        eprintln!("Failed to create netlink connection: {e}");
-        e
-    })?;
+    let (mut connection, handle, _) = new_connection()?;
 
     let _ = connection
         .socket_mut()
