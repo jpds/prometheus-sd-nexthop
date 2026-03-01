@@ -31,12 +31,8 @@ use tower_http::compression::CompressionLayer;
 static VERSION: LazyLock<String> =
     LazyLock::new(|| format!("{} ({})", env!("CARGO_PKG_VERSION"), env!("BUILD_GIT_HASH")));
 
-fn get_version_and_hash() -> &'static str {
-    VERSION.as_str()
-}
-
 #[derive(Parser, Debug)]
-#[command(version = get_version_and_hash(), about, long_about = None)]
+#[command(version = VERSION.as_str(), about, long_about = None)]
 struct Args {
     /// Target poll interval in minutes
     #[arg(long, default_value_t = 1)]
@@ -277,7 +273,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "Starting prometheus-sd-nexthop {} server at [::]:{}",
-        get_version_and_hash(),
+        VERSION.as_str(),
         args.port
     );
 
