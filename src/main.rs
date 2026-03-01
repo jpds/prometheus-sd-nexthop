@@ -47,7 +47,7 @@ struct Args {
     port: u16,
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 struct ProbeTargets {
     targets: HashMap<String, SystemTime>,
 }
