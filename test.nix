@@ -137,7 +137,7 @@
       + "grep 'Starting prometheus-sd-nexthop ${prometheus-sd-nexthop.version} (${builtins.substring 0 10 gitRev})'"
     )
 
-    router.succeed(
+    router.wait_until_succeeds(
       "curl -sf --connect-timeout 2 --max-time 5 http://localhost:9198/ | "
       + "grep 'targets'"
     )
